@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SYS://HEART.EXE — CRT ASCII TERMINAL</title>
+  <style>
+    /* ==========================================================================
+       CORE RESET & MONOCHROME CRT THEME TOKENS
+       Pure black background (#000000), crisp phosphor white (#FFFFFF), monospace only.
+       Zero external fonts, images, SVGs, or libraries.
+       ========================================================================== */
+    :root {
+      --bg-black: #000000;
+      --fg-white: #ffffff;
+      --glow-soft: 0 0 6px rgba(255, 255, 255, 0.45), 0 0 14px rgba(255, 255, 255, 0.2);
+      --glow-strong: 0 0 8px rgba(255, 255, 255, 0.92), 0 0 22px rgba(255, 255, 255, 0.58), 0 0 42px rgba(255, 255, 255, 0.28);
+      --font-mono: "Courier New", Courier, "Lucida Console", Monaco, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-black);
+      color: var(--fg-white);
+      font-family: var(--font-mono);
+      overflow: hidden;
+      position: fixed;
+      inset: 0;
+    }
+
+    /* ==========================================================================
+       CRT MONITOR HOUSING, BARREL CURVATURE & SCREEN SHAKE RIG
+       ========================================================================== */
+    #crt-bezel {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: #000000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #crt-stage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 50% 50%, #090909 0%, #020202 68%, #000000 100%);
+      transform-origin: center center;
+      will-change: transform, filter, opacity;
+      transition: opacity 1.1s ease-in-out;
+    }
+
+    /* Subtle CRT glass curvature border & inner shadow */
+    #crt-stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 45;
+      border-radius: 18px;
+      box-shadow:
+        inset 0 0 75px rgba(0, 0, 0, 0.92),
+        inset 0 0 24px rgba(0, 0, 0, 0.85),
+        inset 0 0 2px rgba(255, 255, 255, 0.14);
+    }
+
+    /* ==========================================================================
+       PURE MONOSPACE ASCII TEXT LAYERS (DOM / PRE-BASED RENDERING)
+       ========================================================================== */
+    .ascii-layer {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-mono);
+      white-space: pre;
+      line-height: 1;
+      letter-spacing: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    /* Layer 1: Background ASCII Rain & Random Flicker Noise */
+    #ascii-bg-layer {
+      z-index: 5;
+      color: rgba(255, 255, 255, 0.24);
+      text-shadow: 0 0 4px rgba(255, 255, 255, 0.18);
+      opacity: 0;
+      transition: opacity 1.6s ease;
+    }
+
+    /* Layer 2: Procedural Particle & Parametric Heart Engine */
+    #ascii-particle-layer {
+      z-index: 15;
+      color: #ffffff;
+      text-shadow: var(--glow-soft);
+      will-change: text-shadow, opacity;
+    }
+
+    /* ==========================================================================
+       FOREGROUND INTERACTIVE TERMINAL & CINEMATIC MESSAGE OVERLAYS
+       ========================================================================== */
+    #ui-center {
+      position: absolute;
+      inset: 0;
+      z-index: 25;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      pointer-events: none;
+    }
+
+    /* Scene 1 Terminal Window Box */
+    #terminal-window {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      transition: opacity 0.9s ease, transform 0.9s ease;
+    }
+
+    #terminal-box-art {
+      font-family: var(--font-mono);
+      font-size: clamp(10px, 2.35vw, 18px);
+      line-height: 1.25;
+      color: var(--fg-white);
+      text-shadow: var(--glow-soft);
+      white-space: pre;
+      text-align: left;
+      margin-bottom: clamp(18px, 3.5vh, 32px);
+    }
+
+    /* Interactive ASCII Buttons ([ YES ] / [ NO ]) */
+    #button-row {
+      display: flex;
+      flex-direction: row;
+      gap: clamp(20px, 5vw, 54px);
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    #button-row.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .ascii-btn {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--fg-white);
+      font-family: var(--font-mono);
+      font-size: clamp(15px, 2.8vw, 22px);
+      font-weight: bold;
+      letter-spacing: 1px;
+      padding: 12px 18px;
+      cursor: pointer;
+      text-shadow: var(--glow-soft);
+      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), text-shadow 0.16s ease, color 0.16s ease;
+      position: relative;
+    }
+
+    .ascii-btn:hover,
+    .ascii-btn:focus-visible {
+      transform: scale(1.1);
+      text-shadow: var(--glow-strong);
+      animation: asciiBtnFlicker 0.18s infinite alternate;
+    }
+
+    .ascii-btn:active {
+      transform: scale(0.97);
+    }
+
+    @keyframes asciiBtnFlicker {
+      0% { opacity: 1; }
+      35% { opacity: 0.84; }
+      70% { opacity: 0.98; }
+      100% { opacity: 0.88; }
+    }
+
+    /* Cinematic Typewriter Messages & Final Prompt Container */
+    #cinematic-message-wrap {
+      position: absolute;
+      inset: 0;
+      z-index: 28;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.95s ease-in-out;
+    }
+
+    #cinematic-message {
+      font-family: var(--font-mono);
+      font-size: clamp(16px, 3.4vw, 30px);
+      line-height: 1.5;
+      letter-spacing: 0.06em;
+      color: var(--fg-white);
+      text-align: center;
+      text-shadow: var(--glow-strong);
+      max-width: 90vw;
+      white-space: pre-wrap;
+    }
+
+    /* Blinking Block Cursor */
+    .cursor {
+      display: inline-block;
+      animation: cursorBlink 0.95s steps(1, end) infinite;
+    }
+
+    @keyframes cursorBlink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    /* ==========================================================================
+       CRT POST-PROCESSING OVERLAYS (SCANLINES, ROLLING BEAM, VIGNETTE, FLICKER)
+       ========================================================================== */
+    #crt-scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0) 0px,
+        rgba(255, 255, 255, 0) 2px,
+        rgba(0, 0, 0, 0.36) 3px,
+        rgba(0, 0, 0, 0.36) 4px
+      );
+      animation: crtSubtleFlicker 0.14s infinite;
+    }
+
+    /* Rolling faint CRT refresh bar */
+    #crt-beam {
+      position: fixed;
+      left: 0;
+      right: 0;
+      height: 16vh;
+      z-index: 51;
+      pointer-events: none;
+      background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.032) 50%,
+        rgba(255, 255, 255, 0) 100%
+      );
+      animation: crtScanBeam 7.5s linear infinite;
+    }
+
+    #crt-vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 52;
+      pointer-events: none;
+      background: radial-gradient(
+        circle at center,
+        rgba(0, 0, 0, 0) 54%,
+        rgba(0, 0, 0, 0.55) 84%,
+        rgba(0, 0, 0, 0.94) 100%
+      );
+    }
+
+    /* Minimal audio status toggle in corner (pure ASCII) */
+    #audio-indicator {
+      position: fixed;
+      bottom: 12px;
+      right: 16px;
+      z-index: 60;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 6px 8px;
+      letter-spacing: 0.05em;
+      transition: color 0.2s ease, text-shadow 0.2s ease;
+    }
+
+    #audio-indicator:hover {
+      color: #ffffff;
+      text-shadow: var(--glow-soft);
+    }
+
+    @keyframes crtSubtleFlicker {
+      0% { opacity: 0.96; }
+      50% { opacity: 1; }
+      100% { opacity: 0.97; }
+    }
+
+    @keyframes crtScanBeam {
+      0% { transform: translateY(-20vh); }
+      100% { transform: translateY(115vh); }
+    }
+  </style>
+</head>
+<body>
+  <div id="crt-bezel">
+    <div id="crt-stage">
+      <!-- Pure Monospace ASCII Background Layer (Rain + Random Flicker Noise) -->
+      <pre id="ascii-bg-layer" class="ascii-layer" aria-hidden="true"></pre>
+
+      <!-- Pure Monospace ASCII Particle & Parametric Heart Layer -->
+      <pre id="ascii-particle-layer" class="ascii-layer" aria-hidden="true"></pre>
+
+      <!-- Scene 1 Interactive Terminal Box & Buttons -->
+      <main id="ui-center">
+        <section id="terminal-window" aria-live="polite">
+          <pre id="terminal-box-art"></pre>
+          <div id="button-row">
+            <button id="btn-yes" class="ascii-btn" type="button">[ YES ]</button>
+            <button id="btn-no" class="ascii-btn" type="button">[ NO ]</button>
+          </div>
+        </section>
+      </main>
+
+      <!-- Cinematic Typewriter Emotional Messages & Final Prompt -->
+      <div id="cinematic-message-wrap" aria-live="polite">
+        <div id="cinematic-message"></div>
+      </div>
+    </div>
+
+    <!-- CRT Hardware Post-Processing Overlays -->
+    <div id="crt-scanlines" aria-hidden="true"></div>
+    <div id="crt-beam" aria-hidden="true"></div>
+    <div id="crt-vignette" aria-hidden="true"></div>
+
+    <!-- Subtle Procedural Sound Toggle (Pure ASCII) -->
+    <button id="audio-indicator" type="button" title="Toggle Procedural CRT Audio">[SFX:AUTO]</button>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * SYS://HEART.EXE — MODULAR PROCEDURAL ASCII CINEMA ENGINE
+     * ============================================================================
+     * Architecture:
+     *  1. SoundEngine       : Procedural Web Audio API synthesizer (key clicks,
+     *                         lub-dub heartbeat thumps, explosion sub-bass, warm pad)
+     *  2. AsciiGrid         : Responsive character-cell grid measurement & fast
+     *                         typed-array ASCII buffer compositing into DOM <pre>
+     *  3. RainAndNoiseEngine: Background cyberpunk ASCII rain + random flicker noise
+     *  4. ParticleHeartEngine: Parametric 3D-shaded ASCII heart generator (with
+     *                         integer cell snapping to eliminate line gaps), swirl
+     *                         assembly, lub-dub heartbeat + spark emitter, radial
+     *                         explosion with bounce, and phrase-woven heart mode
+     *  5. SceneDirector     : State machine orchestrating Scenes 1 -> Final at 60 FPS
+     * ============================================================================
+     */
+
+    (() => {
+      "use strict";
+
+      /* --------------------------------------------------------------------------
+         1. PROCEDURAL WEB AUDIO SYNTHESIZER (ZERO EXTERNAL ASSETS)
+         -------------------------------------------------------------------------- */
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+          this.masterGain = null;
+          this.droneOsc = null;
+          this.droneGain = null;
+        }
+
+        init() {
+          if (this.ctx) {
+            if (this.ctx.state === "suspended") this.ctx.resume();
+            return;
+          }
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            this.ctx = new AudioCtx();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.28;
+            this.masterGain.connect(this.ctx.destination);
+          } catch (_) {
+            // Gracefully degrade if Web Audio is blocked
+          }
+        }
+
+        toggleMute() {
+          this.init();
+          this.muted = !this.muted;
+          if (this.masterGain && this.ctx) {
+            this.masterGain.gain.setTargetAtTime(this.muted ? 0 : 0.28, this.ctx.currentTime, 0.05);
+          }
+          return !this.muted;
+        }
+
+        playKeyTick(pitchBoost = 0) {
+          if (this.muted || !this.ctx || this.ctx.state !== "running") return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = "square";
+          osc.frequency.setValueAtTime(920 + pitchBoost + (Math.random() - 0.5) * 140, now);
+          osc.frequency.exponentialRampToValueAtTime(240, now + 0.022);
+
+          gain.gain.setValueAtTime(0.045, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.024);
+
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 0.026);
+        }
+
+        playHeartbeat(intensity = 1.0) {
+          if (this.muted || !this.ctx || this.ctx.state !== "running") return;
+          const now = this.ctx.currentTime;
+
+          // "Lub" low thump
+          this._triggerThump(now, 64 * (0.95 + intensity * 0.1), 0.22 * intensity, 0.16);
+          // "Dub" secondary thump 145ms later
+          this._triggerThump(now + 0.145, 52 * (0.95 + intensity * 0.1), 0.17 * intensity, 0.18);
+        }
+
+        _triggerThump(startTime, startFreq, peakGain, duration) {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(startFreq, startTime);
+          osc.frequency.exponentialRampToValueAtTime(26, startTime + duration);
+
+          gain.gain.setValueAtTime(0.0001, startTime);
+          gain.gain.linearRampToValueAtTime(Math.min(0.45, peakGain), startTime + 0.018);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(startTime);
+          osc.stop(startTime + duration + 0.02);
+        }
+
+        playExplosion() {
+          if (this.muted || !this.ctx || this.ctx.state !== "running") return;
+          const now = this.ctx.currentTime;
+
+          // Sub-bass shockwave
+          this._triggerThump(now, 95, 0.42, 0.75);
+
+          // Filtered white noise burst for crystalline ASCII shatter
+          const bufferSize = Math.floor(this.ctx.sampleRate * 0.9);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.28));
+          }
+
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = "bandpass";
+          filter.frequency.setValueAtTime(1100, now);
+          filter.frequency.exponentialRampToValueAtTime(180, now + 0.85);
+          filter.Q.value = 1.4;
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.28, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.88);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+          noise.start(now);
+        }
+
+        startWarmPad() {
+          if (this.muted || !this.ctx || this.ctx.state !== "running" || this.droneOsc) return;
+          const now = this.ctx.currentTime;
+          this.droneGain = this.ctx.createGain();
+          this.droneGain.gain.setValueAtTime(0.0001, now);
+          this.droneGain.gain.linearRampToValueAtTime(0.055, now + 2.5);
+          this.droneGain.connect(this.masterGain);
+
+          // Soft fifth interval (A2 + E3)
+          const freqs = [110, 164.81];
+          this.droneOsc = freqs.map((f) => {
+            const osc = this.ctx.createOscillator();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(f, now);
+            osc.connect(this.droneGain);
+            osc.start(now);
+            return osc;
+          });
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         2. RESPONSIVE MONOSPACE GRID ENGINE
+         Measures exact character cell aspect ratio and builds a fast character
+         framebuffer rendered directly to <pre> layers using monospace text only.
+         -------------------------------------------------------------------------- */
+      class AsciiGrid {
+        constructor(bgEl, fgEl) {
+          this.bgEl = bgEl;
+          this.fgEl = fgEl;
+          this.cols = 80;
+          this.rows = 40;
+          this.fontSize = 14;
+          this.charW = 8.4;
+          this.charH = 14;
+          this.aspect = 0.6; // width / height of a monospace cell
+          this.bgBuffer = new Uint16Array(0);
+          this.fgBuffer = new Uint16Array(0);
+          this.fgPriority = new Uint8Array(0);
+          this.resize();
+        }
+
+        resize() {
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+
+          // Responsive font size balancing high glyph legibility & 60 FPS DOM speed
+          const targetFont = Math.max(10, Math.min(16, Math.floor(Math.min(vw, vh) / 50)));
+          this.fontSize = targetFont;
+
+          // Measure exact monospace character advance width & natural line box height
+          const probe = document.createElement("span");
+          probe.style.fontFamily = "var(--font-mono)";
+          probe.style.fontSize = `${this.fontSize}px`;
+          probe.style.lineHeight = "1";
+          probe.style.position = "absolute";
+          probe.style.visibility = "hidden";
+          probe.textContent = "MMMMMMMMMM";
+          document.body.appendChild(probe);
+          const rect = probe.getBoundingClientRect();
+          document.body.removeChild(probe);
+
+          this.charW = rect.width > 0 ? rect.width / 10 : this.fontSize * 0.6;
+          // Use integer pixel line-height matching measured glyph box so block chars connect seamlessly
+          this.charH = Math.max(this.fontSize, Math.ceil(rect.height || this.fontSize));
+          this.aspect = this.charW / this.charH;
+
+          this.cols = Math.max(38, Math.floor(vw / this.charW));
+          this.rows = Math.max(24, Math.floor(vh / this.charH));
+
+          this.bgEl.style.fontSize = `${this.fontSize}px`;
+          this.bgEl.style.lineHeight = `${this.charH}px`;
+          this.fgEl.style.fontSize = `${this.fontSize}px`;
+          this.fgEl.style.lineHeight = `${this.charH}px`;
+
+          const total = this.cols * this.rows;
+          this.bgBuffer = new Uint16Array(total);
+          this.fgBuffer = new Uint16Array(total);
+          this.fgPriority = new Uint8Array(total);
+        }
+
+        clearFg() {
+          this.fgBuffer.fill(32); // ASCII space
+          this.fgPriority.fill(0);
+        }
+
+        setFg(col, row, charCode, priority = 1) {
+          const c = Math.round(col);
+          const r = Math.round(row);
+          if (c < 0 || c >= this.cols || r < 0 || r >= this.rows) return;
+          const idx = r * this.cols + c;
+          if (priority >= this.fgPriority[idx]) {
+            this.fgBuffer[idx] = charCode;
+            this.fgPriority[idx] = priority;
+          }
+        }
+
+        commitBg() {
+          this.bgEl.textContent = this._bufferToLines(this.bgBuffer);
+        }
+
+        commitFg() {
+          this.fgEl.textContent = this._bufferToLines(this.fgBuffer);
+        }
+
+        _bufferToLines(buf) {
+          const cols = this.cols;
+          const rows = this.rows;
+          const lines = new Array(rows);
+          for (let r = 0; r < rows; r++) {
+            const offset = r * cols;
+            const rowSlice = buf.subarray(offset, offset + cols);
+            lines[r] = String.fromCharCode.apply(null, rowSlice);
+          }
+          return lines.join("\n");
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         3. ANIMATED ASCII RAIN & FLICKERING NOISE ENGINE
+         -------------------------------------------------------------------------- */
+      class RainAndNoiseEngine {
+        constructor(grid) {
+          this.grid = grid;
+          this.glyphs = "0123456789ABCDEF#$%&*+=-:;.<>/\\|?~^";
+          this.streams = [];
+          this.intensity = 0;       // 0 = stopped/hidden, 1 = full ambient rain
+          this.targetIntensity = 1;
+          this.noiseRate = 0.0045;
+          this.initStreams();
+        }
+
+        initStreams() {
+          const cols = this.grid.cols;
+          this.streams = new Array(cols);
+          for (let c = 0; c < cols; c++) {
+            this.streams[c] = {
+              active: Math.random() < 0.48,
+              y: Math.random() * this.grid.rows,
+              speed: 6 + Math.random() * 14, // rows per second
+              length: 5 + Math.floor(Math.random() * 13),
+              seed: Math.floor(Math.random() * 1000)
+            };
+          }
+        }
+
+        setTargetIntensity(val) {
+          this.targetIntensity = val;
+        }
+
+        update(dt, time) {
+          // Smoothly approach target intensity
+          this.intensity += (this.targetIntensity - this.intensity) * Math.min(1, dt * 2.2);
+
+          const { cols, rows, bgBuffer } = this.grid;
+          if (this.streams.length !== cols) {
+            this.initStreams();
+          }
+
+          bgBuffer.fill(32);
+
+          if (this.intensity < 0.01) return;
+
+          const glyphLen = this.glyphs.length;
+
+          // 1. Update & draw falling ASCII rain columns
+          for (let c = 0; c < cols; c++) {
+            const s = this.streams[c];
+            if (!s.active) {
+              if (Math.random() < dt * 0.35 * this.intensity) {
+                s.active = true;
+                s.y = -Math.random() * 6;
+                s.speed = 6 + Math.random() * 14;
+                s.length = 5 + Math.floor(Math.random() * 12);
+              }
+              continue;
+            }
+
+            s.y += s.speed * dt * (0.35 + 0.65 * this.intensity);
+            const headRow = Math.floor(s.y);
+
+            if (headRow - s.length > rows) {
+              s.active = Math.random() < 0.65 * this.intensity;
+              s.y = -Math.random() * 8;
+              continue;
+            }
+
+            const visibleLen = Math.max(1, Math.floor(s.length * this.intensity));
+            for (let t = 0; t < visibleLen; t++) {
+              const r = headRow - t;
+              if (r < 0 || r >= rows) continue;
+
+              const tick = Math.floor(time * 9 + c * 3 + r * 7 + s.seed);
+              let ch;
+              if (t === 0) {
+                ch = this.glyphs.charCodeAt(tick % glyphLen);
+              } else if (t < visibleLen * 0.5) {
+                ch = this.glyphs.charCodeAt((tick + t) % glyphLen);
+              } else {
+                const tailChars = ":..·-";
+                ch = tailChars.charCodeAt((tick + t) % tailChars.length);
+              }
+              bgBuffer[r * cols + c] = ch;
+            }
+          }
+
+          // 2. Random flickering CRT ASCII noise cells
+          const noiseCount = Math.floor(cols * rows * this.noiseRate * this.intensity);
+          const noiseChars = ".:;*+#~";
+          for (let i = 0; i < noiseCount; i++) {
+            const idx = (Math.random() * cols * rows) | 0;
+            bgBuffer[idx] = noiseChars.charCodeAt((Math.random() * noiseChars.length) | 0);
+          }
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         4. PARAMETRIC HEART & PARTICLE PHYSICS ENGINE
+         Generates a volumetric shaded ASCII heart using:
+           (x^2 + y^2 - 1)^3 - x^2 * y^3 <= 0
+         Samples exact integer grid cells (1x1) so there are zero horizontal or
+         vertical seams across any screen resolution.
+         -------------------------------------------------------------------------- */
+      class ParticleHeartEngine {
+        constructor(grid, sound) {
+          this.grid = grid;
+          this.sound = sound;
+          this.particles = [];
+          this.sparks = [];
+          this.mode = "IDLE"; // IDLE | ASSEMBLE | BEAT | EXPLODE | GATHER
+          this.modeTime = 0;
+          this.beatScale = 1.0;
+          this.lastBeatIndex = -1;
+          this.explosionGravity = 26;
+          this.finalPhraseStream = null;
+          // Density ramp from outer edge to bright 3D core
+          this.coreRamp = [".", ":", "=", "+", "*", "&", "%", "$", "#", "@", "▒", "▓", "█"];
+          this.burstGlyphs = ["@", "#", "$", "%", "&", "*", "+", "=", ":", ".", "█", "▓", "▒", "/", "\\", "!", "?"];
+        }
+
+        /**
+         * Samples mathematical heart coordinates on exact integer grid cells
+         * so there are never fractional rounding gaps or seams inside the heart.
+         * When phraseStream is provided, fills the silhouette sequentially with
+         * characters from the emotional phrases.
+         */
+        generateHeartTargets(phraseStream = null) {
+          const { cols, rows, aspect } = this.grid;
+          const cx = Math.floor(cols * 0.5);
+          const cy = Math.floor(rows * 0.48);
+
+          const maxHalfW = cols * 0.41;
+          const maxHalfH = rows * 0.36;
+          const scaleY = Math.min(maxHalfH, (maxHalfW * aspect) / 1.15);
+          const scaleX = scaleY / aspect;
+
+          const targets = [];
+          let phraseCursor = 0;
+
+          // Step by exact integer grid cells (1x1) to guarantee zero horizontal/vertical gaps
+          for (let r = 2; r < rows - 2; r += 1) {
+            let rowHasCell = false;
+            for (let c = 2; c < cols - 2; c += 1) {
+              const nx = (c - cx) / scaleX;
+              const ny = -(r - cy) / scaleY + 0.12;
+
+              const x2 = nx * nx;
+              const y2 = ny * ny;
+              const a = x2 + y2 - 1.0;
+              const val = a * a * a - x2 * y2 * ny;
+
+              if (val <= 0) {
+                rowHasCell = true;
+                const depth = Math.min(1, Math.pow(-val, 0.32) * 1.45);
+                const light = Math.max(0, (-nx * 0.35 + ny * 0.45 + 0.4) * 0.35);
+                const shade = Math.min(0.999, depth * 0.78 + light);
+
+                let ch;
+                if (phraseStream && phraseStream.length > 0) {
+                  ch = phraseStream.charCodeAt(phraseCursor % phraseStream.length);
+                  phraseCursor++;
+                } else {
+                  const charIdx = Math.floor(shade * (this.coreRamp.length - 1));
+                  ch = this.coreRamp[charIdx].charCodeAt(0);
+                }
+
+                targets.push({
+                  tx: c,
+                  ty: r,
+                  nx,
+                  ny,
+                  depth,
+                  baseChar: ch,
+                  priority: phraseStream ? 8 : Math.max(2, Math.floor(shade * 10))
+                });
+              }
+            }
+            // Add a clean separator space between rows when reading phrase text
+            if (rowHasCell && phraseStream && phraseStream.length > 0) {
+              if (phraseStream[phraseCursor % phraseStream.length] !== " ") {
+                phraseCursor++;
+              }
+            }
+          }
+          return targets;
+        }
+
+        startAssembly() {
+          this.finalPhraseStream = null;
+          const targets = this.generateHeartTargets();
+          const { cols, rows } = this.grid;
+          const cx = cols * 0.5;
+          const cy = rows * 0.47;
+
+          this.particles = targets.map((t) => {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.max(cols, rows) * (0.55 + Math.random() * 0.65);
+            const sx = cx + Math.cos(angle) * dist;
+            const sy = cy + Math.sin(angle) * dist * 0.65;
+
+            return {
+              x: sx,
+              y: sy,
+              vx: (Math.random() - 0.5) * 18,
+              vy: (Math.random() - 0.5) * 18,
+              tx: t.tx,
+              ty: t.ty,
+              nx: t.nx,
+              ny: t.ny,
+              depth: t.depth,
+              baseChar: t.baseChar,
+              charCode: this.burstGlyphs[(Math.random() * this.burstGlyphs.length) | 0].charCodeAt(0),
+              priority: t.priority,
+              delay: Math.random() * 0.65,
+              life: 1.0,
+              spinSpeed: (Math.random() - 0.5) * 18,
+              spinPhase: Math.random() * 10
+            };
+          });
+
+          this.sparks = [];
+          this.mode = "ASSEMBLE";
+          this.modeTime = 0;
+          this.lastBeatIndex = -1;
+        }
+
+        startBeat() {
+          this.mode = "BEAT";
+          this.modeTime = 0;
+          this.lastBeatIndex = -1;
+          for (let i = 0; i < this.particles.length; i++) {
+            this.particles[i].charCode = this.particles[i].baseChar;
+          }
+        }
+
+        triggerExplosion() {
+          this.mode = "EXPLODE";
+          this.modeTime = 0;
+          const { cols, rows, aspect } = this.grid;
+          const cx = cols * 0.5;
+          const cy = rows * 0.47;
+
+          this.sound.playExplosion();
+
+          for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
+            const dx = p.x - cx;
+            const dy = (p.y - cy) / aspect;
+            const dist = Math.hypot(dx, dy) + 0.01;
+            const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.35;
+
+            const speed = (24 + Math.random() * 58) * (0.65 + dist * 0.025);
+            p.vx = Math.cos(angle) * speed;
+            p.vy = Math.sin(angle) * speed * aspect - (6 + Math.random() * 14);
+            p.life = 1.0 + Math.random() * 0.65;
+            p.spinSpeed = 10 + Math.random() * 24;
+          }
+        }
+
+        startFinalGather(phraseStream) {
+          this.finalPhraseStream = phraseStream;
+          const targets = this.generateHeartTargets(phraseStream);
+          const { cols, rows } = this.grid;
+
+          this.particles = targets.map((t) => ({
+            x: Math.random() * cols,
+            y: Math.random() * rows,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            tx: t.tx,
+            ty: t.ty,
+            nx: t.nx,
+            ny: t.ny,
+            depth: t.depth,
+            baseChar: t.baseChar,
+            charCode: t.baseChar,
+            priority: t.priority,
+            delay: Math.random() * 1.05,
+            life: 1.0,
+            spinSpeed: (Math.random() - 0.5) * 10,
+            spinPhase: Math.random() * 10
+          }));
+
+          this.sparks = [];
+          this.mode = "GATHER";
+          this.modeTime = 0;
+        }
+
+        emitBeatSparks(count, speedScale = 1.0) {
+          const { cols, rows, aspect } = this.grid;
+          const cx = cols * 0.5;
+          const cy = rows * 0.47;
+
+          for (let i = 0; i < count; i++) {
+            const src = this.particles[(Math.random() * this.particles.length) | 0];
+            if (!src) continue;
+            const dx = src.x - cx;
+            const dy = (src.y - cy) / aspect;
+            const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.4;
+            const spd = (8 + Math.random() * 16) * speedScale;
+
+            this.sparks.push({
+              x: src.x,
+              y: src.y,
+              vx: Math.cos(angle) * spd,
+              vy: Math.sin(angle) * spd * aspect,
+              life: 0.55 + Math.random() * 0.5,
+              maxLife: 1.05
+            });
+          }
+        }
+
+        computeHeartbeatPulse(phase) {
+          const lub = Math.exp(-Math.pow((phase - 0.14) / 0.065, 2));
+          const dub = 0.68 * Math.exp(-Math.pow((phase - 0.31) / 0.055, 2));
+          return lub + dub;
+        }
+
+        update(dt, stageEl, fgLayerEl) {
+          if (this.mode === "IDLE") return;
+          this.modeTime += dt;
+
+          const { cols, rows } = this.grid;
+          const cx = cols * 0.5;
+          const cy = rows * 0.47;
+
+          if (this.mode === "ASSEMBLE") {
+            for (let i = 0; i < this.particles.length; i++) {
+              const p = this.particles[i];
+              if (this.modeTime < p.delay) continue;
+
+              const dx = p.tx - p.x;
+              const dy = p.ty - p.y;
+              const dist = Math.hypot(dx, dy);
+
+              const swirl = Math.min(1, dist * 0.04) * 14;
+              const angle = Math.atan2(dy, dx);
+              const ax = dx * 7.5 - Math.sin(angle) * swirl;
+              const ay = dy * 7.5 + Math.cos(angle) * swirl;
+
+              p.vx = (p.vx + ax * dt) * Math.pow(0.08, dt);
+              p.vy = (p.vy + ay * dt) * Math.pow(0.08, dt);
+              p.x += p.vx * dt;
+              p.y += p.vy * dt;
+
+              if (dist < 1.8) {
+                p.charCode = p.baseChar;
+              } else {
+                p.spinPhase += dt * 12;
+                p.charCode = this.burstGlyphs[(Math.abs(Math.floor(p.spinPhase)) % this.burstGlyphs.length)].charCodeAt(0);
+              }
+            }
+          } else if (this.mode === "BEAT") {
+            const progress = Math.min(1, this.modeTime / 4.2);
+            const bpm = 68 + Math.pow(progress, 1.8) * 155;
+            const freq = bpm / 60;
+
+            this._beatPhase = ((this._beatPhase || 0) + dt * freq) % 1;
+            const pulse = this.computeHeartbeatPulse(this._beatPhase);
+            this.beatScale = 1.0 + pulse * (0.11 + progress * 0.09);
+
+            if (this._beatPhase > 0.12 && this._beatPhase < 0.25 && this.lastBeatIndex !== 1) {
+              this.lastBeatIndex = 1;
+              this.sound.playHeartbeat(0.85 + progress * 0.55);
+              this.emitBeatSparks(Math.floor(14 + progress * 24), 1 + progress * 0.7);
+            } else if (this._beatPhase >= 0.4) {
+              this.lastBeatIndex = 0;
+            }
+
+            const glowRadius = 10 + pulse * 18 + progress * 24;
+            const glowAlpha = 0.45 + pulse * 0.35 + progress * 0.2;
+            fgLayerEl.style.textShadow = `0 0 ${glowRadius.toFixed(1)}px rgba(255,255,255,${glowAlpha.toFixed(2)}), 0 0 ${(glowRadius * 2.1).toFixed(1)}px rgba(255,255,255,${(glowAlpha * 0.55).toFixed(2)})`;
+
+            if (progress > 0.35) {
+              const shakeAmt = Math.pow((progress - 0.35) / 0.65, 1.6) * (3.5 + pulse * 4.5);
+              const sx = (Math.random() - 0.5) * 2 * shakeAmt;
+              const sy = (Math.random() - 0.5) * 2 * shakeAmt;
+              stageEl.style.transform = `translate3d(${sx.toFixed(2)}px, ${sy.toFixed(2)}px, 0)`;
+            }
+
+            for (let i = 0; i < this.particles.length; i++) {
+              const p = this.particles[i];
+              p.x = Math.round(cx + (p.tx - cx) * this.beatScale);
+              p.y = Math.round(cy + (p.ty - cy) * this.beatScale);
+            }
+          } else if (this.mode === "EXPLODE") {
+            if (this.modeTime < 0.45) {
+              const shock = (1 - this.modeTime / 0.45) * 11;
+              stageEl.style.transform = `translate3d(${((Math.random() - 0.5) * shock).toFixed(1)}px, ${((Math.random() - 0.5) * shock).toFixed(1)}px, 0)`;
+            } else {
+              stageEl.style.transform = "translate3d(0,0,0)";
+              fgLayerEl.style.textShadow = "";
+            }
+
+            const drag = Math.pow(0.42, dt);
+            for (let i = 0; i < this.particles.length; i++) {
+              const p = this.particles[i];
+              if (p.life <= 0) continue;
+
+              p.vx *= drag;
+              p.vy = p.vy * drag + this.explosionGravity * dt;
+              p.x += p.vx * dt;
+              p.y += p.vy * dt;
+
+              // Wall bounce
+              if (p.x < 1) {
+                p.x = 1;
+                p.vx = Math.abs(p.vx) * 0.62;
+              } else if (p.x > cols - 2) {
+                p.x = cols - 2;
+                p.vx = -Math.abs(p.vx) * 0.62;
+              }
+
+              // Floor & ceiling bounce
+              if (p.y > rows - 2) {
+                p.y = rows - 2;
+                p.vy = -Math.abs(p.vy) * 0.52;
+                p.vx *= 0.85;
+              } else if (p.y < 1) {
+                p.y = 1;
+                p.vy = Math.abs(p.vy) * 0.52;
+              }
+
+              p.spinPhase += p.spinSpeed * dt;
+              const glyphIdx = Math.abs(Math.floor(p.spinPhase)) % this.burstGlyphs.length;
+              p.charCode = this.burstGlyphs[glyphIdx].charCodeAt(0);
+
+              p.life -= dt * 0.46;
+            }
+          } else if (this.mode === "GATHER") {
+            const settled = this.modeTime > 2.4;
+            const pulse = settled ? 1.0 + Math.max(0, Math.sin(this.modeTime * 2.4)) * 0.025 : 1.0;
+
+            for (let i = 0; i < this.particles.length; i++) {
+              const p = this.particles[i];
+              if (this.modeTime < p.delay) continue;
+
+              if (settled) {
+                p.x = Math.round(cx + (p.tx - cx) * pulse);
+                p.y = Math.round(cy + (p.ty - cy) * pulse);
+              } else {
+                p.x += (p.tx - p.x) * Math.min(1, dt * 3.1);
+                p.y += (p.ty - p.y) * Math.min(1, dt * 3.1);
+              }
+            }
+          }
+
+          // Update spark particles
+          for (let i = this.sparks.length - 1; i >= 0; i--) {
+            const s = this.sparks[i];
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+            s.vx *= Math.pow(0.25, dt);
+            s.vy *= Math.pow(0.25, dt);
+            s.life -= dt;
+            if (s.life <= 0) {
+              this.sparks.splice(i, 1);
+            }
+          }
+        }
+
+        render() {
+          if (this.mode === "IDLE") return;
+
+          for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
+            if (this.mode === "EXPLODE") {
+              if (p.life <= 0) continue;
+              let ch = p.charCode;
+              if (p.life < 0.25) ch = 46; // '.'
+              else if (p.life < 0.48) ch = 58; // ':'
+              this.grid.setFg(p.x, p.y, ch, 5);
+            } else {
+              if ((this.mode === "ASSEMBLE" || this.mode === "GATHER") && this.modeTime < p.delay) {
+                continue;
+              }
+              this.grid.setFg(p.x, p.y, p.charCode, p.priority);
+            }
+          }
+
+          for (let i = 0; i < this.sparks.length; i++) {
+            const s = this.sparks[i];
+            const ch = s.life > 0.45 ? 42 : s.life > 0.22 ? 43 : 46; // '*' -> '+' -> '.'
+            this.grid.setFg(s.x, s.y, ch, 12);
+          }
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         5. SCENE DIRECTOR & CINEMATIC TYPEWRITER CONTROLLER
+         -------------------------------------------------------------------------- */
+      class SceneDirector {
+        constructor() {
+          this.stageEl = document.getElementById("crt-stage");
+          this.bgEl = document.getElementById("ascii-bg-layer");
+          this.fgEl = document.getElementById("ascii-particle-layer");
+          this.termWindowEl = document.getElementById("terminal-window");
+          this.termBoxEl = document.getElementById("terminal-box-art");
+          this.btnRowEl = document.getElementById("button-row");
+          this.btnYesEl = document.getElementById("btn-yes");
+          this.btnNoEl = document.getElementById("btn-no");
+          this.msgWrapEl = document.getElementById("cinematic-message-wrap");
+          this.msgEl = document.getElementById("cinematic-message");
+          this.audioBtnEl = document.getElementById("audio-indicator");
+
+          this.sound = new SoundEngine();
+          this.grid = new AsciiGrid(this.bgEl, this.fgEl);
+          this.rain = new RainAndNoiseEngine(this.grid);
+          this.heart = new ParticleHeartEngine(this.grid, this.sound);
+
+          this.emotionalMessages = [
+            "You matter.",
+            "You make this world brighter.",
+            "Thank you for existing.",
+            "You deserve happiness.",
+            "You are stronger than you think.",
+            "Never forget your value.",
+            "Someone is thankful you're here.",
+            "The world is better because you're in it.",
+            "You are loved.",
+            "You are enough.",
+            "I'm grateful you exist.",
+            "<3"
+          ];
+
+          this.lastTime = performance.now();
+          this.choiceMade = false;
+
+          this._bindEvents();
+          this._startLoop();
+          this.runScene1();
+        }
+
+        _bindEvents() {
+          window.addEventListener("resize", () => {
+            this.grid.resize();
+            if (this.heart.mode === "BEAT" || this.heart.mode === "GATHER") {
+              const phraseStream =
+                this.heart.mode === "GATHER" ? this.emotionalMessages.join(" ") + " " : this.heart.finalPhraseStream;
+              const updated = this.heart.generateHeartTargets(phraseStream);
+              this.heart.particles = updated.map((t) => ({
+                x: t.tx,
+                y: t.ty,
+                vx: 0,
+                vy: 0,
+                tx: t.tx,
+                ty: t.ty,
+                nx: t.nx,
+                ny: t.ny,
+                depth: t.depth,
+                baseChar: t.baseChar,
+                charCode: t.baseChar,
+                priority: t.priority,
+                delay: 0,
+                life: 1,
+                spinSpeed: 0,
+                spinPhase: 0
+              }));
+            }
+          });
+
+          const unlockAudio = () => this.sound.init();
+          window.addEventListener("pointerdown", unlockAudio, { once: true });
+          window.addEventListener("keydown", unlockAudio, { once: true });
+
+          this.audioBtnEl.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const active = this.sound.toggleMute();
+            this.audioBtnEl.textContent = active ? "[SFX:ON]" : "[SFX:OFF]";
+          });
+
+          [this.btnYesEl, this.btnNoEl].forEach((btn) => {
+            btn.addEventListener("mouseenter", () => {
+              this.sound.init();
+              this.sound.playKeyTick(180);
+            });
+          });
+
+          this.btnNoEl.addEventListener("click", () => {
+            if (this.choiceMade) return;
+            this.choiceMade = true;
+            this.sound.init();
+            this.sound.playKeyTick(-120);
+            this.runNoBranch();
+          });
+
+          this.btnYesEl.addEventListener("click", () => {
+            if (this.choiceMade) return;
+            this.choiceMade = true;
+            this.sound.init();
+            this.sound.playKeyTick(260);
+            this.runYesSequence();
+          });
+        }
+
+        sleep(ms) {
+          return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+
+        /**
+         * SCENE 1: Boot from black, fade in ASCII rain, draw terminal frame
+         * character-by-character, type prompt, and reveal [ YES ] / [ NO ].
+         */
+        async runScene1() {
+          await this.sleep(450);
+          this.bgEl.style.opacity = "1";
+          await this.sleep(950);
+
+          const boxLines = [
+            "+----------------------------------------+",
+            "|                                        |",
+            "| > Do you want to see something special?|",
+            "|                                        |",
+            "+----------------------------------------+"
+          ];
+
+          const emptyFrame = [
+            "+----------------------------------------+",
+            "|                                        |",
+            "|                                        |",
+            "|                                        |",
+            "+----------------------------------------+"
+          ];
+
+          let builtFrame = "";
+          const rawFrameStr = emptyFrame.join("\n");
+          for (let i = 0; i < rawFrameStr.length; i++) {
+            builtFrame += rawFrameStr[i];
+            this.termBoxEl.innerHTML = this._escapeHtml(builtFrame) + '<span class="cursor">█</span>';
+            if (rawFrameStr[i] !== " " && rawFrameStr[i] !== "\n") {
+              if (i % 3 === 0) this.sound.playKeyTick(-80);
+              await this.sleep(9);
+            }
+          }
+
+          await this.sleep(260);
+
+          const promptText = "> Do you want to see something special?";
+          const innerWidth = 40;
+
+          for (let c = 0; c <= promptText.length; c++) {
+            const typed = promptText.slice(0, c);
+            const showCursor = c < promptText.length;
+            const visibleLen = typed.length + (showCursor ? 1 : 0);
+            const padRight = " ".repeat(Math.max(0, innerWidth - visibleLen));
+
+            const line2 = "| " + this._escapeHtml(typed) + (showCursor ? '<span class="cursor">█</span>' : "") + padRight + "|";
+
+            this.termBoxEl.innerHTML =
+              `${boxLines[0]}\n` +
+              `${boxLines[1]}\n` +
+              `${line2}\n` +
+              `${boxLines[3]}\n` +
+              `${boxLines[4]}`;
+
+            if (c > 0 && promptText[c - 1] !== " ") {
+              this.sound.playKeyTick(40);
+            }
+            await this.sleep(44);
+          }
+
+          await this.sleep(320);
+
+          this.btnRowEl.classList.add("visible");
+          this.btnYesEl.focus({ preventScroll: true });
+        }
+
+        /**
+         * SCENE 1B (User presses [ NO ]):
+         * Prints "> Maybe another time..." and "> Stay safe." with blinking cursor.
+         */
+        async runNoBranch() {
+          this.btnRowEl.classList.remove("visible");
+          await this.sleep(420);
+
+          const lines = [
+            "> Maybe another time...",
+            "> Stay safe."
+          ];
+
+          this.termBoxEl.innerHTML = "";
+          let rendered = "";
+
+          for (let l = 0; l < lines.length; l++) {
+            const line = lines[l];
+            for (let i = 0; i < line.length; i++) {
+              rendered += this._escapeHtml(line[i]);
+              this.termBoxEl.innerHTML = rendered + '<span class="cursor">█</span>';
+              if (line[i] !== " ") this.sound.playKeyTick(-40);
+              await this.sleep(52);
+            }
+            if (l < lines.length - 1) {
+              rendered += "\n";
+              await this.sleep(420);
+            }
+          }
+
+          this.termBoxEl.innerHTML = rendered + '<span class="cursor">█</span>';
+        }
+
+        /**
+         * SCENES 2, 3 & FINAL (User presses [ YES ]):
+         * 1. Fade to black & silence
+         * 2. Assemble parametric ASCII heart -> heartbeat -> accelerate -> EXPLODE
+         * 3. Emotional messages sequence
+         * 4. Final phrase-woven heart -> heartbeat -> accelerate -> EXPLODE ->
+         *    "> открой активность" with forever-blinking cursor & returning ASCII rain
+         */
+        async runYesSequence() {
+          // 1. Fade terminal window & ASCII rain to silence/black
+          this.btnRowEl.classList.remove("visible");
+          this.termWindowEl.style.opacity = "0";
+          this.termWindowEl.style.transform = "scale(0.96)";
+          this.rain.setTargetIntensity(0);
+          this.bgEl.style.opacity = "0";
+
+          await this.sleep(1500);
+          this.termWindowEl.style.display = "none";
+
+          // Dramatic silence in pure black
+          await this.sleep(900);
+
+          // 2. SCENE 2: Thousands of ASCII particles fly inward and form the Heart
+          this.heart.startAssembly();
+          await this.sleep(2750);
+
+          // 3. Heart pulses with realistic double-thump heartbeat for ~4.2 seconds,
+          //    accelerating, brightening, shaking screen, then EXPLODING.
+          this.heart.startBeat();
+          await this.sleep(4250);
+
+          this.heart.triggerExplosion();
+          await this.sleep(2700);
+
+          this.heart.mode = "IDLE";
+          this.grid.clearFg();
+          this.grid.commitFg();
+
+          await this.sleep(550);
+
+          // 4. SCENE 3: Cinematic emotional messages one after another
+          this.sound.startWarmPad();
+
+          for (let i = 0; i < this.emotionalMessages.length; i++) {
+            const msg = this.emotionalMessages[i];
+            const isFinalHeartSymbol = msg === "<3";
+            await this.playCinematicMessage(msg, isFinalHeartSymbol);
+            await this.sleep(360);
+          }
+
+          // 5. FINAL SCENE: Particles gather into one glowing ASCII heart woven
+          //    directly from the emotional phrases, pulse, accelerate, EXPLODE,
+          //    and reveal "> открой активность" with a blinking cursor forever.
+          await this.sleep(400);
+          const phraseStream = this.emotionalMessages.join(" ") + " ";
+          this.heart.startFinalGather(phraseStream);
+
+          // Wait for phrase-woven heart to assemble smoothly
+          await this.sleep(2550);
+
+          // Heartbeat accelerates, glow intensifies, screen shakes slightly
+          this.heart.startBeat();
+          await this.sleep(3800);
+
+          // Final explosion!
+          this.heart.triggerExplosion();
+
+          // Slowly bring back gentle ASCII rain in the background
+          await this.sleep(1200);
+          this.rain.setTargetIntensity(0.65);
+          this.bgEl.style.opacity = "0.78";
+
+          // Wait for explosion particles to disperse, then type "> открой активность"
+          await this.sleep(1350);
+          this.heart.mode = "IDLE";
+          this.grid.clearFg();
+          this.grid.commitFg();
+
+          await this.showFinalClosingMessage("> открой активность");
+        }
+
+        async showFinalClosingMessage(text) {
+          this.msgEl.innerHTML = "";
+          this.msgWrapEl.style.opacity = "1";
+
+          let current = "";
+          for (let i = 0; i < text.length; i++) {
+            current += this._escapeHtml(text[i]);
+            this.msgEl.innerHTML = current + '<span class="cursor">█</span>';
+            if (text[i] !== " ") this.sound.playKeyTick(60);
+            await this.sleep(68);
+          }
+
+          // Keep message and blinking cursor visible permanently
+          this.msgEl.innerHTML = current + '<span class="cursor">█</span>';
+        }
+
+        async playCinematicMessage(text, isSymbol = false) {
+          this.msgEl.innerHTML = "";
+          this.msgWrapEl.style.opacity = "1";
+
+          let current = "";
+          const charDelay = isSymbol ? 110 : 48;
+
+          for (let i = 0; i < text.length; i++) {
+            current += this._escapeHtml(text[i]);
+            this.msgEl.innerHTML = current + '<span class="cursor">█</span>';
+            if (text[i] !== " ") this.sound.playKeyTick(60);
+            await this.sleep(charDelay);
+          }
+
+          await this.sleep(isSymbol ? 1850 : 1450);
+
+          this.msgWrapEl.style.opacity = "0";
+          await this.sleep(950);
+          this.msgEl.innerHTML = "";
+        }
+
+        _escapeHtml(str) {
+          return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+        }
+
+        _startLoop() {
+          const tick = (now) => {
+            const dt = Math.min(0.05, (now - this.lastTime) / 1000);
+            this.lastTime = now;
+            const timeSec = now / 1000;
+
+            this.rain.update(dt, timeSec);
+            this.grid.commitBg();
+
+            this.grid.clearFg();
+            this.heart.update(dt, this.stageEl, this.fgEl);
+            this.heart.render();
+            this.grid.commitFg();
+
+            requestAnimationFrame(tick);
+          };
+
+          requestAnimationFrame(tick);
+        }
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => new SceneDirector());
+      } else {
+        new SceneDirector();
+      }
+    })();
+  </script>
+</body>
+</html>
